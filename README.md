@@ -1,6 +1,6 @@
 # Stock Analyzer - AI-Powered Stock Insights
 
-A complete web application that provides AI-powered stock analysis using real-time data from Yahoo Finance and OpenAI GPT-4.
+A complete web application that provides AI-powered stock analysis using real-time data from Yahoo Finance and OpenAI GPT-4. Created with help from claude.
 
 ## Quick Start
 
