@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock Analyzer - AI-Powered Stock Insights</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Stock Analyzer</h1>
+            <p class="subtitle">Get AI-powered insights on any stock</p>
+        </header>
+
+        <div class="search-section">
+            <form id="stock-form">
+                <div class="search-container">
+                    <input 
+                        type="text" 
+                        id="ticker-input" 
+                        placeholder="Enter stock ticker (e.g., AAPL, TSLA, MSFT)" 
+                        required
+                        maxlength="10"
+                        autocomplete="off"
+                    >
+                    <button type="submit" id="analyze-btn">
+                        <span class="btn-text">Analyze</span>
+                        <span class="loader" style="display: none;"></span>
+                    </button>
+                </div>
+            </form>
+            <div class="example-tickers">
+                Try: 
+                <span class="ticker-chip" data-ticker="AAPL">AAPL</span>
+                <span class="ticker-chip" data-ticker="GOOGL">GOOGL</span>
+                <span class="ticker-chip" data-ticker="MSFT">MSFT</span>
+                <span class="ticker-chip" data-ticker="NVDA">NVDA</span>
+                <span class="ticker-chip" data-ticker="TSLA">TSLA</span>
+            </div>
+        </div>
+
+        <div id="error-message" class="error-message" style="display: none;"></div>
+
+        <div id="results" class="results" style="display: none;">
+            <div class="stock-header">
+                <div class="stock-title">
+                    <h2 id="company-name"></h2>
+                    <span id="ticker-symbol" class="ticker-badge"></span>
+                </div>
+                <div class="price-info">
+                    <div class="current-price">
+                        <span class="price-label">Current Price</span>
+                        <span id="current-price" class="price-value"></span>
+                    </div>
+                    <div id="price-change" class="price-change">
+                        <span id="change-amount"></span>
+                        <span id="change-percent" class="change-percent"></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <span class="metric-label">Week Performance</span>
+                    <span id="week-performance" class="metric-value"></span>
+                </div>
+                <div class="metric-card">
+                    <span class="metric-label">Month Performance</span>
+                    <span id="month-performance" class="metric-value"></span>
+                </div>
+                <div class="metric-card">
+                    <span class="metric-label">P/E Ratio</span>
+                    <span id="pe-ratio" class="metric-value"></span>
+                </div>
+                <div class="metric-card">
+                    <span class="metric-label">Market Cap</span>
+                    <span id="market-cap" class="metric-value"></span>
+                </div>
+                <div class="metric-card">
+                    <span class="metric-label">52-Week High</span>
+                    <span id="week-high" class="metric-value"></span>
+                </div>
+                <div class="metric-card">
+                    <span class="metric-label">52-Week Low</span>
+                    <span id="week-low" class="metric-value"></span>
+                </div>
+            </div>
+
+
+            <div class="ai-explanation">
+                <h3>AI Analysis</h3>
+                <div id="explanation-content" class="explanation-content"></div>
+            </div>
+        </div>
+
+        <footer>
+            <p>This tool is for educational purposes only. Not financial advice.</p>
+            <p>Data provided by Yahoo Finance | Analysis powered by OpenAI GPT-4</p>
+        </footer>
+    </div>
+
+    <script>
+
+        document.querySelectorAll('.ticker-chip').forEach(chip => {
+            chip.addEventListener('click', () => {
+                document.getElementById('ticker-input').value = chip.dataset.ticker;
+                document.getElementById('stock-form').dispatchEvent(new Event('submit'));
+            });
+        });
+
+        document.getElementById('stock-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const ticker = document.getElementById('ticker-input').value.trim();
+            if (!ticker) return;
+
+            const analyzeBtn = document.getElementById('analyze-btn');
+            const btnText = analyzeBtn.querySelector('.btn-text');
+            const loader = analyzeBtn.querySelector('.loader');
+            const results = document.getElementById('results');
+            const errorMessage = document.getElementById('error-message');
+
+            btnText.style.display = 'none';
+            loader.style.display = 'inline-block';
+            analyzeBtn.disabled = true;
+            results.style.display = 'none';
+            errorMessage.style.display = 'none';
+
+            try {
+                const response = await fetch('/api/explain', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ ticker: ticker })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Failed to fetch stock data');
+                }
+
+                displayResults(data);
+                results.style.display = 'block';
+
+            } catch (error) {
+                errorMessage.textContent = error.message;
+                errorMessage.style.display = 'block';
+            } finally {
+                btnText.style.display = 'inline';
+                loader.style.display = 'none';
+                analyzeBtn.disabled = false;
+            }
+        });
+
+        function displayResults(data) {
+            document.getElementById('company-name').textContent = data.company_name;
+            document.getElementById('ticker-symbol').textContent = data.ticker;
+            
+            const currentPrice = data.current_price ? `$${data.current_price.toFixed(2)}` : 'N/A';
+            document.getElementById('current-price').textContent = currentPrice;
+
+            const priceChangeDiv = document.getElementById('price-change');
+            if (data.day_change !== null && data.day_change_percent !== null) {
+                const changeAmount = document.getElementById('change-amount');
+                const changePercent = document.getElementById('change-percent');
+                
+                const sign = data.day_change >= 0 ? '+' : '';
+                changeAmount.textContent = `${sign}$${Math.abs(data.day_change).toFixed(2)}`;
+                changePercent.textContent = `(${sign}${data.day_change_percent.toFixed(2)}%)`;
+                
+                priceChangeDiv.className = 'price-change ' + (data.day_change >= 0 ? 'positive' : 'negative');
+            }
+
+            document.getElementById('week-performance').textContent = data.week_performance || 'N/A';
+            document.getElementById('week-performance').className = 'metric-value ' + 
+                (data.week_performance && data.week_performance.startsWith('+') ? 'positive' : 
+                 data.week_performance && data.week_performance.startsWith('-') ? 'negative' : '');
+
+            document.getElementById('month-performance').textContent = data.month_performance || 'N/A';
+            document.getElementById('month-performance').className = 'metric-value ' + 
+                (data.month_performance && data.month_performance.startsWith('+') ? 'positive' : 
+                 data.month_performance && data.month_performance.startsWith('-') ? 'negative' : '');
+
+            document.getElementById('pe-ratio').textContent = data.pe_ratio ? data.pe_ratio.toFixed(2) : 'N/A';
+            document.getElementById('market-cap').textContent = data.market_cap || 'N/A';
+            document.getElementById('week-high').textContent = data.fifty_two_week_high ? `$${data.fifty_two_week_high.toFixed(2)}` : 'N/A';
+            document.getElementById('week-low').textContent = data.fifty_two_week_low ? `$${data.fifty_two_week_low.toFixed(2)}` : 'N/A';
+
+            const explanationContent = document.getElementById('explanation-content');
+            explanationContent.innerHTML = data.explanation.split('\n').map(para => 
+                para.trim() ? `<p>${para}</p>` : ''
+            ).join('');
+        }
+    </script>
+</body>
+</html>
